@@ -5,7 +5,16 @@ import datetime
 from selenium.webdriver.common.keys import Keys
 import pyperclip
 
+# 검색할 물건
+thing = '맥북 m1'
 
+# 다음페이지 몇 번 할지
+next = 3
+
+# 총 몇 페이지
+total_page = 35
+total_next = total_page // 10
+last_page = total_page % 10
 
 # datetime
 now = datetime.datetime.now()
@@ -14,7 +23,7 @@ today = now.strftime('%Y-%m-%d')
 # 엑셀
 wb = Workbook(write_only=True)
 ws = wb.create_sheet(today)
-ws.append(['작성날짜', '판매 상태', '제목', '가격', 'url'])
+ws.append(['작성날짜', '판매 상태', '제목', 'url', '가격'])
 
 # 중고나라 들어가기
 driver = webdriver.Chrome()
@@ -36,21 +45,22 @@ time.sleep(1)
 
 # id 입력
 tag_id.click()
-pyperclip.copy('아이디')
+pyperclip.copy('######')
 tag_id.send_keys(Keys.CONTROL, 'v')
 time.sleep(1)
 
 # pw 입력
 tag_pw.click()
-pyperclip.copy('비밀번호')
+pyperclip.copy('#####')
 tag_pw.send_keys(Keys.CONTROL, 'v')
 time.sleep(1)
 
 # 로그인 버튼을 클릭합니다
 login_btn = driver.find_element_by_id('log.login')
 login_btn.click()
-# 맥북 검색
-driver.find_element_by_css_selector('#topLayerQueryInput').send_keys('맥북에어 m1')
+
+# 검색
+driver.find_element_by_css_selector('#topLayerQueryInput').send_keys(thing)
 driver.find_element_by_css_selector('#cafe-search .btn').click()
 time.sleep(1)
 
@@ -65,42 +75,43 @@ time.sleep(1)
 driver.find_element_by_css_selector('.btn-search-green').click()
 time.sleep(1)
 
+for _ in range(next):
+    for page in range(10):
+        for i in range(len(driver.find_elements_by_css_selector('.article'))):
 
-for page in range(9):
+            # 게시글 들어가기
+            articles = driver.find_elements_by_css_selector('a.article')[i]
+            articles.click()
+            time.sleep(1)
 
-    for i in range(len(driver.find_elements_by_css_selector('.article'))):
+            # 정보추출
+            write_date = driver.find_element_by_css_selector('.date').text
+            product_title = driver.find_element_by_css_selector('h3.title_text').text
+            url = driver.find_element_by_css_selector('.button_url').get_attribute('href')
+            # 가격을 못찾으면 그냥 빈칸 입력
+            try:
+                product_price = driver.find_element_by_css_selector('.ProductPrice').text
+            except:
+                product_price = ""
 
-        # 게시글 들어가기
-        articles = driver.find_elements_by_css_selector('a.article')[i]
-        articles.click()
-        time.sleep(1)
+            try:
+                status = driver.find_element_by_css_selector('.SaleLabel').text
+            except:
+                status = ""
 
-        # 정보추출
-        write_date = driver.find_element_by_css_selector('.date').text
-        product_title = driver.find_element_by_css_selector('h3.title_text').text
-        url = driver.find_element_by_css_selector('.button_url').get_attribute('href')
-        # 가격을 못찾으면 그냥 빈칸 입력
-        try:
-            product_price = driver.find_element_by_css_selector('.ProductPrice').text
-        except:
-            product_price = ""
+            # 엑셀에 작성
+            ws.append([write_date, status, product_title, url, product_price])
 
-        try:
-            status = driver.find_element_by_css_selector('.SaleLabel').text
-        except:
-            status = ""
+            # 뒤로가기
+            driver.back()
+            driver.switch_to.frame('cafe_main')
 
-        # 엑셀에 작성
-        ws.append([write_date, status, product_title, product_price, url])
+        # 다음 게시글 page 이동
+        pages = driver.find_elements_by_css_selector('.prev-next a')[page + 1]
+        pages.click()
+    driver.find_element_by_css_selector('.m-tcol-c').click()
 
-        # 뒤로가기
-        driver.back()
-        driver.switch_to.frame('cafe_main')
-
-    # 다음 게시글 page 이동
-    pages = driver.find_elements_by_css_selector('.prev-next a')[page + 1]
-    pages.click()
 
 
 driver.quit()
-wb.save('중고나라 맥북 m1 매물.xlsx')
+wb.save(f'중고나라 {today}{thing} 매물.xlsx')
