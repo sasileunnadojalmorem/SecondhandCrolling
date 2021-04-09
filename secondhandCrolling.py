@@ -4,6 +4,8 @@ from openpyxl import Workbook
 import datetime
 from selenium.webdriver.common.keys import Keys
 import pyperclip
+import pandas as pd
+
 
 # 검색할 물건
 thing = '맥북 m1'
@@ -97,14 +99,17 @@ for _ in range(next):
                 product_price = int(price_no_won_shim)
             except:
                 # 제목에서 가격 문자열 추출
-                product_title = product_title.replace('[', '')
-                product_title = product_title.replace(']', '&')
-                product_price_str = product_title.split('&')[-2]
+                try:
+                    product_title = product_title.replace('[', '')
+                    product_title = product_title.replace(']', '&')
+                    product_price_str = product_title.split('&')[-2]
 
-                # 가격 문자열을 숫자로 바꾸기
-                price_no_won = product_price_str[:-1]
-                price_no_won_shim = price_no_won.replace(',', '')
-                product_price = int(price_no_won_shim)
+                    # 가격 문자열을 숫자로 바꾸기
+                    price_no_won = product_price_str[:-1]
+                    price_no_won_shim = price_no_won.replace(',', '')
+                    product_price = int(price_no_won_shim)
+                except:
+                    product_price=''
 
             try:
                 status = driver.find_element_by_css_selector('.SaleLabel').text
@@ -124,6 +129,18 @@ for _ in range(next):
     driver.find_element_by_css_selector('.m-tcol-c').click()
 
 
-
+# selenium 끝내고 엑셀 파일 저장
 driver.quit()
 wb.save(f'중고나라 {today}{thing} 매물.xlsx')
+
+# 가격이 비이상적인 데이터 삭제하기
+df = pd.read_excel(f'C:\\Users\\82102\\PycharmProjects\\CoditFrist\\news\\mail\\중고나라 2021-04-07맥북 m1 매물.xlsx')
+
+q1 = df['가격'].quantile(0.25)
+q3 = df['가격'].quantile(0.75)
+iqr = q3 - q1
+
+condition = (df['가격'] > q3 + 1.5 * iqr) | (df['가격'] < q1 - 1.5 * iqr)
+df.drop(df[condition].index, inplace=True)
+
+
