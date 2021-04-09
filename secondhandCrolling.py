@@ -45,13 +45,13 @@ time.sleep(1)
 
 # id 입력
 tag_id.click()
-pyperclip.copy('######')
+pyperclip.copy('####')
 tag_id.send_keys(Keys.CONTROL, 'v')
 time.sleep(1)
 
 # pw 입력
 tag_pw.click()
-pyperclip.copy('#####')
+pyperclip.copy('####')
 tag_pw.send_keys(Keys.CONTROL, 'v')
 time.sleep(1)
 
@@ -90,9 +90,21 @@ for _ in range(next):
             url = driver.find_element_by_css_selector('.button_url').get_attribute('href')
             # 가격을 못찾으면 그냥 빈칸 입력
             try:
-                product_price = driver.find_element_by_css_selector('.ProductPrice').text
+                # 가격 문자열을 숫자로 바꾸기
+                product_price_str = driver.find_element_by_css_selector('.ProductPrice').text
+                price_no_won = product_price_str[:-1]
+                price_no_won_shim = price_no_won.replace(',', '')
+                product_price = int(price_no_won_shim)
             except:
-                product_price = ""
+                # 제목에서 가격 문자열 추출
+                product_title = product_title.replace('[', '')
+                product_title = product_title.replace(']', '&')
+                product_price_str = product_title.split('&')[-2]
+
+                # 가격 문자열을 숫자로 바꾸기
+                price_no_won = product_price_str[:-1]
+                price_no_won_shim = price_no_won.replace(',', '')
+                product_price = int(price_no_won_shim)
 
             try:
                 status = driver.find_element_by_css_selector('.SaleLabel').text
