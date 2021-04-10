@@ -11,7 +11,7 @@ import pandas as pd
 thing = '맥북 m1'
 
 # 총 몇 페이지 자료를 모을지 선택
-total_page = 354
+total_page = 22
 
 # 페이지 개수 나누기
 total_next = total_page // 10
@@ -21,10 +21,14 @@ last_page = total_page - total_next * 10
 now = datetime.datetime.now()
 today = now.strftime('%Y-%m-%d')
 
-# 엑셀
-wb = Workbook(write_only=True)
-ws = wb.create_sheet(today)
-ws.append(['작성날짜', '판매 상태', '제목', 'url', '가격'])
+# # 엑셀
+# wb = Workbook(write_only=True)
+# ws = wb.create_sheet(today)
+# ws.append(['작성날짜', '판매 상태', '제목', 'url', '가격'])
+
+# 데이터프레임 만들기 위한 박스 만들기
+datas = []
+
 
 # 중고나라 들어가기
 driver = webdriver.Chrome()
@@ -76,7 +80,7 @@ time.sleep(1)
 driver.find_element_by_css_selector('.btn-search-green').click()
 time.sleep(1)
 
-# 크롤링 함수 정의(만약 "이전" 버튼이 있으면 num은 1 아니면 0)
+# 첫줄부터 끝줄까지 크롤링 함수 정의(만약 "이전" 버튼이 있으면 num은 1 아니면 0 )
 def crolling(num):
     # 게시글 들어가는 반복문
     with_before = 0
@@ -117,8 +121,8 @@ def crolling(num):
         except:
             status = ""
 
-        # 엑셀에 작성
-        ws.append([write_date, status, product_title, url, product_price])
+        # 데이터프레임에 작성
+        datas.append([write_date, status, product_title, url, product_price])
 
         # 뒤로가기
         driver.back()
@@ -128,26 +132,27 @@ def crolling(num):
     pages = driver.find_elements_by_css_selector('.prev-next a')[page + 1 + num]
     pages.click()
 
-for i in range(total_next):
+for i in range(total_next + 1):
     # 마지막 10단위 페이지일 때
     if i == 0:
         # 다음페이지 클릭 반복문
         for page in range(10):
             crolling(0)
-    elif i > 0 and i != total_next-1:
+    elif i > 0 and i != total_next:
         for page in range(10):
             crolling(1)
-    elif i == total_next-1:
+    elif i == total_next:
         for page in range(last_page):
             crolling(1)
 
+df = pd.DataFrame(data=datas, columns=['작성날짜', '판매 상태', '제목', 'url', '가격'])
 
-# selenium 끝내고 엑셀 파일 저장
+# selenium 끝내기
 driver.quit()
-wb.save(f'중고나라 {today}{thing} 매물.xlsx')
 
-# 데이터프레임 생성
-df = pd.read_excel(f'C:\\Users\\82102\\PycharmProjects\\CoditFrist\\news\\mail\\중고나라 {today}{thing} 매물.xlsx')
+
+# 중복된 데이터 삭제
+df.drop_duplicates(['제목'], inplace=True)
 
 # 가격이 비이상적인 데이터 삭제하기
 q1 = df['가격'].quantile(0.25)
@@ -156,4 +161,7 @@ iqr = q3 - q1
 condition = (df['가격'] > q3 + 1.5 * iqr) | (df['가격'] < q1 - 1.5 * iqr)
 df.drop(df[condition].index, inplace=True)
 
-print(df.describe())
+# 만들어진 df를 엑셀에 저장하기
+writer = pd.ExcelWriter(f'중고나라 {thing} 매물.xlsx')
+df.to_excel(writer, f'{today}')
+writer.save()
