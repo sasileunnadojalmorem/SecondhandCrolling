@@ -10,13 +10,12 @@ import pandas as pd
 # 검색할 물건
 thing = '맥북 m1'
 
-# 다음페이지 몇 번 할지
-next = 3
+# 총 몇 페이지 자료를 모을지 선택
+total_page = 354
 
-# 총 몇 페이지
-total_page = 35
+# 페이지 개수 나누기
 total_next = total_page // 10
-last_page = total_page % 10
+last_page = total_page - total_next * 10
 
 # datetime
 now = datetime.datetime.now()
@@ -77,70 +76,84 @@ time.sleep(1)
 driver.find_element_by_css_selector('.btn-search-green').click()
 time.sleep(1)
 
-for _ in range(next):
-    for page in range(10):
-        for i in range(len(driver.find_elements_by_css_selector('.article'))):
+# 크롤링 함수 정의(만약 "이전" 버튼이 있으면 num은 1 아니면 0)
+def crolling(num):
+    # 게시글 들어가는 반복문
+    with_before = 0
+    for i in range(len(driver.find_elements_by_css_selector('.article'))):
 
-            # 게시글 들어가기
-            articles = driver.find_elements_by_css_selector('a.article')[i]
-            articles.click()
-            time.sleep(1)
+        # 게시글 들어가기
+        articles = driver.find_elements_by_css_selector('a.article')[i]
+        articles.click()
+        time.sleep(1)
 
-            # 정보추출
-            write_date = driver.find_element_by_css_selector('.date').text
-            product_title = driver.find_element_by_css_selector('h3.title_text').text
-            url = driver.find_element_by_css_selector('.button_url').get_attribute('href')
-            # 가격을 못찾으면 그냥 빈칸 입력
+        # 정보추출
+        write_date = driver.find_element_by_css_selector('.date').text
+        product_title = driver.find_element_by_css_selector('h3.title_text').text
+        url = driver.find_element_by_css_selector('.button_url').get_attribute('href')
+        # 가격을 못찾으면 그냥 빈칸 입력
+        try:
+            # 가격 문자열을 숫자로 바꾸기
+            product_price_str = driver.find_element_by_css_selector('.ProductPrice').text
+            price_no_won = product_price_str[:-1]
+            price_no_won_shim = price_no_won.replace(',', '')
+            product_price = int(price_no_won_shim)
+        except:
+            # 제목에서 가격 문자열 추출
             try:
+                product_title = product_title.replace('[', '')
+                product_title = product_title.replace(']', '&')
+                product_price_str = product_title.split('&')[-2]
+
                 # 가격 문자열을 숫자로 바꾸기
-                product_price_str = driver.find_element_by_css_selector('.ProductPrice').text
                 price_no_won = product_price_str[:-1]
                 price_no_won_shim = price_no_won.replace(',', '')
                 product_price = int(price_no_won_shim)
             except:
-                # 제목에서 가격 문자열 추출
-                try:
-                    product_title = product_title.replace('[', '')
-                    product_title = product_title.replace(']', '&')
-                    product_price_str = product_title.split('&')[-2]
+                product_price = ''
+        # 판매 상태 정보 저장
+        try:
+            status = driver.find_element_by_css_selector('.SaleLabel').text
+        except:
+            status = ""
 
-                    # 가격 문자열을 숫자로 바꾸기
-                    price_no_won = product_price_str[:-1]
-                    price_no_won_shim = price_no_won.replace(',', '')
-                    product_price = int(price_no_won_shim)
-                except:
-                    product_price=''
+        # 엑셀에 작성
+        ws.append([write_date, status, product_title, url, product_price])
 
-            try:
-                status = driver.find_element_by_css_selector('.SaleLabel').text
-            except:
-                status = ""
+        # 뒤로가기
+        driver.back()
+        driver.switch_to.frame('cafe_main')
 
-            # 엑셀에 작성
-            ws.append([write_date, status, product_title, url, product_price])
+    # 다음 게시글 page 이동
+    pages = driver.find_elements_by_css_selector('.prev-next a')[page + 1 + num]
+    pages.click()
 
-            # 뒤로가기
-            driver.back()
-            driver.switch_to.frame('cafe_main')
-
-        # 다음 게시글 page 이동
-        pages = driver.find_elements_by_css_selector('.prev-next a')[page + 1]
-        pages.click()
-    driver.find_element_by_css_selector('.m-tcol-c').click()
+for i in range(total_next):
+    # 마지막 10단위 페이지일 때
+    if i == 0:
+        # 다음페이지 클릭 반복문
+        for page in range(10):
+            crolling(0)
+    elif i > 0 and i != total_next-1:
+        for page in range(10):
+            crolling(1)
+    elif i == total_next-1:
+        for page in range(last_page):
+            crolling(1)
 
 
 # selenium 끝내고 엑셀 파일 저장
 driver.quit()
 wb.save(f'중고나라 {today}{thing} 매물.xlsx')
 
-# 가격이 비이상적인 데이터 삭제하기
-df = pd.read_excel(f'C:\\Users\\82102\\PycharmProjects\\CoditFrist\\news\\mail\\중고나라 2021-04-07맥북 m1 매물.xlsx')
+# 데이터프레임 생성
+df = pd.read_excel(f'C:\\Users\\82102\\PycharmProjects\\CoditFrist\\news\\mail\\중고나라 {today}{thing} 매물.xlsx')
 
+# 가격이 비이상적인 데이터 삭제하기
 q1 = df['가격'].quantile(0.25)
 q3 = df['가격'].quantile(0.75)
 iqr = q3 - q1
-
 condition = (df['가격'] > q3 + 1.5 * iqr) | (df['가격'] < q1 - 1.5 * iqr)
 df.drop(df[condition].index, inplace=True)
 
-
+print(df.describe())
