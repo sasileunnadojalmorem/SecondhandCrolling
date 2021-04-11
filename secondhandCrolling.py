@@ -11,7 +11,7 @@ import pandas as pd
 thing = '맥북 m1'
 
 # 총 몇 페이지 자료를 모을지 선택
-total_page = 22
+total_page =
 
 # 페이지 개수 나누기
 total_next = total_page // 10
@@ -160,6 +160,10 @@ q3 = df['가격'].quantile(0.75)
 iqr = q3 - q1
 condition = (df['가격'] > q3 + 1.5 * iqr) | (df['가격'] < q1 - 1.5 * iqr)
 df.drop(df[condition].index, inplace=True)
+
+# 제목에 '삽니다' 라는 말이 있으면 삭제
+condition_buy = df['제목'].str.contains('삽니다')
+df.drop(df[condition_buy].index, inplace=True)
 
 # 만들어진 df를 엑셀에 저장하기
 writer = pd.ExcelWriter(f'중고나라 {thing} 매물.xlsx')
