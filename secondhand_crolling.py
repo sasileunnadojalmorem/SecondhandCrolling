@@ -168,3 +168,9 @@ df.drop(df[condition_buy].index, inplace=True)
 writer = pd.ExcelWriter(f'중고나라 {thing} 매물.xlsx')
 df.to_excel(writer, f'{today}')
 writer.save()
+
+# pandas 소수 출력값을 소수 아래 0 자리까지 표시하도록 설정
+pd.set_option('display.float_format', lambda x: '%.f' % x)
+
+# 가격 칼럼에 대한 요약 출력
+print(df['가격'].describe())
