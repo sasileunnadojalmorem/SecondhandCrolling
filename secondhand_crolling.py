@@ -20,11 +20,6 @@ last_page = total_page - total_next * 10
 now = datetime.datetime.now()
 today = now.strftime('%Y-%m-%d')
 
-# # 엑셀
-# wb = Workbook(write_only=True)
-# ws = wb.create_sheet(today)
-# ws.append(['작성날짜', '판매 상태', '제목', 'url', '가격'])
-
 # 데이터프레임 만들기 위한 박스 만들기
 datas = []
 
@@ -117,8 +112,13 @@ def crolling(num):
         # 판매 상태 정보 저장
         try:
             status = driver.find_element_by_css_selector('.SaleLabel').text
+            # 판매 상태를 '완료' 나 '판매' 로 통일
+            if status == '예약중':
+                status = '완료'
+            elif status == '판매(안전)':
+                status = '판매'
         except:
-            status = ""
+            status = "알수없음"
 
         # 데이터프레임에 작성
         datas.append([write_date, status, product_title, url, product_price])
@@ -163,6 +163,9 @@ df.drop(df[condition].index, inplace=True)
 # 제목에 '삽니다' 라는 말이 있으면 삭제
 condition_buy = df['제목'].str.contains('삽니다')
 df.drop(df[condition_buy].index, inplace=True)
+
+# 가격이 낮은 순서대로 정렬하기
+df = df.sort_values('가격')
 
 # 만들어진 df를 엑셀에 저장하기
 writer = pd.ExcelWriter(f'중고나라 {thing} 매물.xlsx')
