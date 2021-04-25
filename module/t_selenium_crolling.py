@@ -75,23 +75,26 @@ def start():
 
                 write_date = driver.find_element_by_css_selector('.date').text
                 product_title = driver.find_element_by_css_selector('h3.title_text').text
-                seller_name = driver.find_element_by_css_selector('.profile_info').text
+                seller_name = driver.find_element_by_css_selector('.nick_box').text
                 url = driver.find_element_by_css_selector('.button_url').get_attribute('href')
-                status = driver.find_element_by_css_selector('.SaleLabel').text
-                # # 판매 상태를 '완료' 나 '판매' 로 통일
-                # if status == '예약중':
-                #     status = '완료'
-                # elif status == '판매(안전)':
-                #     status = '판매'
-                # 가격을 못찾으면 공식앱인지 확인
+                print('1')
                 try:
+                    status = driver.find_element_by_css_selector('.SaleLabel').text
                     product_price_str = driver.find_element_by_css_selector('.ProductPrice').text
                     # 가격 문자열을 숫자로 바꾸기
                     price_no_won = product_price_str[:-1]
                     product_price = int(price_no_won.replace(',', ''))
                 except:
                     product_price = ''
+                    status = ''
                     print('2')
+                    # 데이터프레임에 작성
+                    datas_yet.append([write_date, status, seller_name, product_title, url, product_price])
+
+                    # 뒤로가기
+                    driver.back()
+                    driver.switch_to.frame('cafe_main')
+                    continue
 
             except:
                 print('???')
