@@ -68,7 +68,7 @@ def start():
             articles = driver.find_elements_by_css_selector('a.article')[i]
             articles.click()
             driver.implicitly_wait(3)
-           
+
             # 만약 화면이 안뜨면 그냥 넘어감
             try:
                 # 정보추출
@@ -77,7 +77,7 @@ def start():
                 product_title = driver.find_element_by_css_selector('h3.title_text').text
                 seller_name = driver.find_element_by_css_selector('.nick_box').text
                 url = driver.find_element_by_css_selector('.button_url').get_attribute('href')
-                
+
                 try:
                     status = driver.find_element_by_css_selector('.SaleLabel').text
                     product_price_str = driver.find_element_by_css_selector('.ProductPrice').text
@@ -87,7 +87,7 @@ def start():
                 except:
                     product_price = ''
                     status = ''
-                
+
                     # 데이터프레임에 작성
                     datas_yet.append([write_date, status, seller_name, product_title, url, product_price])
 
@@ -97,7 +97,7 @@ def start():
                     continue
 
             except:
-               
+                print('???')
                 write_date = ''
                 product_title = ''
                 seller_name = ''
