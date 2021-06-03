@@ -3,6 +3,7 @@ from t_selenium_crolling import start
 from data_cleaning import cleaning_duplicates, cleaning_Outlier, no_price_data
 import matplotlib.pyplot as plt
 import seaborn as sns
+from define import thing
 
 # 크롤링 모듈에서 start 함수의 리턴으로 데이터프레임을 가져옴
 df, df_yet = start()
@@ -23,7 +24,7 @@ df_filled_price = no_price_data(df_yet)
 df_final = pd.concat([df_no_outer, df_filled_price])
 
 # 데이터프레임 저장하기
-df_final.to_csv('/Users/choewonjun/PycharmProjects/study/secondhand/df_final.csv', index=False, encoding='utf-8-sig')
+df_final.to_csv(f'/Users/choewonjun/PycharmProjects/study/secondhand/{thing}.csv', index=False, encoding='utf-8-sig')
 
 # boxplot 그래프 출력하기로
 sns.boxplot(y='price', data=df_no_outer)
