@@ -1,10 +1,14 @@
 import datetime
-# 검색할 물건
 
-thing = '애플워치 se'
+# 검색할 물건
+thing = '맥북프로 m1'
+
+# 경로 설정
+save_path = "~/Desktop"
+driver_path = "/Users/choewonjun/Downloads/chromedriver"
 
 # 총 몇 페이지 자료를 모을지 선택
-total_page = 1
+total_page = 10
 
 # 페이지 개수 나누기
 total_next = total_page // 10
