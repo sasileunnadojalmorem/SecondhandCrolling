@@ -1,145 +1,148 @@
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 import time
 import pyperclip
-from selenium.webdriver.common.keys import Keys
 import pandas as pd
 from define import total_next, thing, last_page, user_id, user_pw, driver_path
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
-def crolling(driver, num, datas, datas_yet):
-	# 게시글 들어가는 반복문
-	for i in range(len(driver.find_elements_by_css_selector('.article'))):
+def filter_articles(driver):
+    articles = []
+    article_elements = driver.find_elements(By.CSS_SELECTOR, 'td.td_article')
+    
+    for element in article_elements:
+        article_title_element = element.find_element(By.CSS_SELECTOR, 'a.article')
+        article_title = article_title_element.text
 
-		# 게시글 들어가기
-		articles = driver.find_elements_by_css_selector('a.article')[i]
-		articles.click()
-		driver.implicitly_wait(3)
+        # "앱 상품"이 포함되지 않은 경우만 추가
+        if "앱 상품" not in article_title:
+            article_url = article_title_element.get_attribute('href')
+            articles.append({
+                "title": article_title,
+                "url": article_url
+            })
+    
+    return articles
 
-		# 만약 화면이 안뜨면 그냥 넘어감
-		try:
-			# 정보추출
+def crolling(driver, num, datas, datas_yet, page):
+    # Retrieve URLs of articles to avoid stale element errors
+    WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.article')))
+    articles = filter_articles(driver)
 
-			write_date = driver.find_element_by_css_selector('.date').text
-			product_title = driver.find_element_by_css_selector('h3.title_text').text
-			seller_name = driver.find_element_by_css_selector('.nick_box').text
-			url = driver.find_element_by_css_selector('.button_url').get_attribute('href')
+    current_page_link = driver.find_element(By.CSS_SELECTOR, '.prev-next a.on').get_attribute('href')
 
-			try:
-				status = driver.find_element_by_css_selector('.SaleLabel').text
-				product_price_str = driver.find_element_by_css_selector('.ProductPrice').text
-				# 가격 문자열을 숫자로 바꾸기
-				price_no_won = product_price_str[:-1]
-				product_price = int(price_no_won.replace(',', ''))
-			except:
-				product_price = ''
-				status = ''
+    for article in articles:
+        driver.get(article["url"])
+        WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.ID, 'cafe_main')))
 
-				# 데이터프레임에 작성
-				datas_yet.append([write_date, status, seller_name, product_title, url, product_price])
+        try:
+            write_date = driver.find_element(By.CSS_SELECTOR, '.date').text
+            product_name_element = driver.find_element(By.CSS_SELECTOR, 'p.ProductName')
+            product_name = product_name_element.text.replace("", "").strip()
 
-				# 뒤로가기
-				driver.back()
-				driver.switch_to.frame('cafe_main')
-				continue
+            product_title = product_name_element.text if product_name_element else ''
+            price_element = driver.find_element(By.CSS_SELECTOR, 'div.ProductPrice strong.cost')
+            price_text = price_element.text.replace("원", "").replace(",", "").strip()
+            price = int(price_text)
+            
+            seller_name = driver.find_element(By.CSS_SELECTOR, '.nick_box').text
+            current_url = driver.current_url
 
-		except:
-			print('Exception occur!')
-			write_date = ''
-			product_title = ''
-			seller_name = ''
-			url = ''
-			status = ''
-			product_price= ''
-		# 데이터프레임에 작성
-		datas.append([write_date, status, seller_name, product_title, url, product_price])
+            # 이미지 URL 가져오기
+            try:
+                image_url = driver.find_element(By.CSS_SELECTOR, '.product_thumb img').get_attribute('src')
+            except:
+                image_url = ''  # 이미지가 없을 경우 빈 문자열
 
-		# 뒤로가기
-		driver.back()
-		driver.switch_to.frame('cafe_main')
+            try:
+                status = driver.find_element(By.CSS_SELECTOR, '.SaleLabel').text
+                product_price_str = driver.find_element(By.CSS_SELECTOR, '.ProductPrice').text
+                price_no_won = product_price_str[:-1]
+                product_price = int(price_no_won.replace(',', ''))
+            except:
+                product_price = ''
+                status = ''
 
-	# 다음 게시글 page 이동
-	pages = driver.find_elements_by_css_selector('.prev-next a')[page + 1 + num]
-	pages.click()
+            datas_yet.append([write_date, status, seller_name, product_name, current_url, price, image_url])
+            print(write_date, status, seller_name, product_name, current_url, price, image_url)
+
+        except Exception as e:
+            print(f'Exception occurred while extracting data: {e}')
+            datas.append(['', '', '', '', url, '', ''])
+
+        driver.back()
+        WebDriverWait(driver, 10).until(EC.frame_to_be_available_and_switch_to_it((By.ID, 'cafe_main')))
+
+    driver.get(current_page_link)
 
 def start():
-	# 데이터프레임 만들기 위한 박스 만들기
-	datas = []
-	datas_yet= []
+    datas = []
+    datas_yet = []
 
-	# 중고나라 들어가기
-	driver = webdriver.Chrome(driver_path)
-	driver.implicitly_wait(3)
-	driver.get('https://cafe.naver.com/joonggonara')
-	driver.maximize_window()
-	time.sleep(1)
+    driver = webdriver.Chrome()
+    driver.implicitly_wait(3)
+    driver.get('https://cafe.naver.com/joonggonara')
+    driver.maximize_window()
+    time.sleep(1)
 
-	# 로그인 버튼을 찾고 클릭합니다.
-	login_btn = driver.find_element_by_css_selector('#gnb_login_button')
-	login_btn.click()
-	time.sleep(1)
+    # Login sequence
+    login_btn = driver.find_element(By.CSS_SELECTOR, '#gnb_login_button')
+    login_btn.click()
+    time.sleep(1)
 
-	# id, pw 입력할 곳을 찾습니다.
-	tag_id = driver.find_element_by_name('id')
-	tag_pw = driver.find_element_by_name('pw')
-	tag_id.clear()
-	time.sleep(1)
+    tag_id = driver.find_element(By.NAME, 'id')
+    tag_pw = driver.find_element(By.NAME, 'pw')
+    tag_id.clear()
+    time.sleep(1)
 
-	# id 입력
-	tag_id.click()
-	pyperclip.copy(user_id)
-	tag_id.send_keys(Keys.COMMAND, 'v') # 맥 사용자
-	# tag_id.send_keys(Keys.CONTROL, 'v') # 윈도우 사용자
-	time.sleep(1)
+    # Enter credentials
+    tag_id.click()
+    pyperclip.copy(user_id)
+    tag_id.send_keys(Keys.CONTROL + 'v')
+    time.sleep(1)
 
-	# pw 입력
-	tag_pw.click()
-	pyperclip.copy(user_pw)
-	tag_pw.send_keys(Keys.COMMAND, 'v') # 맥 사용자
-	# tag_id.send_keys(Keys.CONTROL, 'v') # 윈도우 사용자
-	time.sleep(1)
+    tag_pw.click()
+    pyperclip.copy(user_pw)
+    tag_pw.send_keys(Keys.CONTROL + 'v')
+    time.sleep(1)
 
-	# 로그인 버튼을 클릭합니다
-	login_btn = driver.find_element_by_id('log.login')
-	login_btn.click()
+    login_btn = driver.find_element(By.ID, 'log.login')
+    login_btn.click()
 
-	# 검색
-	driver.find_element_by_css_selector('#topLayerQueryInput').send_keys(thing)
-	driver.find_element_by_css_selector('#cafe-search .btn').click()
-	time.sleep(1)
+    # Search
+    driver.find_element(By.CSS_SELECTOR, '#topLayerQueryInput').send_keys(thing)
+    driver.find_element(By.CSS_SELECTOR, '#cafe-search .btn').click()
+    time.sleep(1)
 
-	# iframe 들어가기
-	driver.switch_to.frame('cafe_main')
+    driver.switch_to.frame('cafe_main')
 
-	# 제목만으로 바꾸기
-	driver.find_element_by_css_selector('#currentSearchByTop').click()
-	time.sleep(1)
-	driver.find_elements_by_css_selector('#sl_general li')[1].click()
-	time.sleep(1)
-	driver.find_element_by_css_selector('.btn-search-green').click()
-	time.sleep(1)
+    driver.find_element(By.CSS_SELECTOR, '#currentSearchByTop').click()
+    time.sleep(1)
+    driver.find_elements(By.CSS_SELECTOR, '#sl_general li')[1].click()
+    time.sleep(1)
+    driver.find_element(By.CSS_SELECTOR, '.btn-search-green').click()
+    time.sleep(1)
 
-	# 첫줄부터 끝줄까지 크롤링 함수 정의(만약 "이전" 버튼이 있으면 num은 1 아니면 0 )
-	
+    for i in range(total_next + 1):
+        if i == 0:
+            if total_next == 0:
+                for page in range(last_page):
+                    crolling(driver, 0, datas, datas_yet, page)
+                break
+            for page in range(10):
+                crolling(driver, 0, datas, datas_yet, page)
+        elif i > 0 and i != total_next:
+            for page in range(10):
+                crolling(driver, 1, datas, datas_yet, page)
+        elif i == total_next:
+            for page in range(last_page):
+                crolling(driver, 1, datas, datas_yet, page)
 
-	for i in range(total_next + 1):
-		# 마지막 10단위 페이지일 때
-		if i == 0:
-			if total_next == 0:
-				for page in range(last_page):
-					crolling(driver, 0, datas, datas_yet)
-				break
-			# 다음페이지 클릭 반복문
-			for page in range(10):
-				crolling(driver, 0, datas, datas_yet)
-		elif i > 0 and i != total_next:
-			for page in range(10):
-				crolling(driver, 1, datas, datas_yet)
-		elif i == total_next:
-			for page in range(last_page):
-				crolling(driver, 1, datas, datas_yet)
+    function_df = pd.DataFrame(data=datas, columns=['작성날짜', '판매 상태', '판매자', '제목', 'url', 'price', 'image_url'])
+    function_yet_df = pd.DataFrame(data=datas_yet, columns=['작성날짜', '판매 상태', '판매자', '제목', 'url', 'price', 'image_url'])
+    print(function_df)
+    driver.quit()
 
-	function_df = pd.DataFrame(data=datas, columns=['작성날짜', '판매 상태', '판매자', '제목', 'url', 'price'])
-	function_yet_df = pd.DataFrame(data=datas_yet, columns=['작성날짜', '판매 상태', '판매자', '제목', 'url', 'price'])
-	# selenium 끝내기
-	driver.quit()
-
-	return function_df, function_yet_df
+    return function_df, function_yet_df
